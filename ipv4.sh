@@ -1,9 +1,8 @@
-#!/bin/sh
-# Bu araç @keyiflerolsun tarafından | @KekikAkademi için yazılmıştır.
+#!/bin/bash
 
 #------------------#
-KULLANICI=tarak
-SIFRE=kurek
+KULLANICI=eros
+SIFRE=eros
 #------------------#
 
 #------------------#
@@ -34,11 +33,13 @@ veri_olustur() {
 
 squid_yukle() {
     echo -e "\n\n\t$yesil Squid Yükleniyor..\n$renkreset\n"
-    yum install nano dos2unix squid httpd-tools -y      # >/dev/null
+    apt-get update
+    apt-get install nano dos2unix squid apache2-utils -y
+
     htpasswd -bc /etc/squid/passwd $KULLANICI $SIFRE
 
     cat >/etc/squid/squid.conf <<EOF
-auth_param basic program /usr/lib64/squid/basic_ncsa_auth /etc/squid/passwd
+auth_param basic program /usr/lib/squid/basic_ncsa_auth /etc/squid/passwd
 auth_param basic realm proxy
 acl authenticated proxy_auth REQUIRED
 http_access allow authenticated
@@ -50,8 +51,8 @@ EOF
 
     systemctl restart squid.service && systemctl enable squid.service
 
-    iptables -I INPUT -p tcp --dport $IPV4_PORT -j ACCEPT
-    iptables-save                                      # >/dev/null
+    ufw allow $IPV4_PORT/tcp
+    ufw reload
 }
 
 proxy_txt() {
@@ -70,7 +71,7 @@ file_io_yukle() {
     echo -e "\n\n\t$yesil Zip Yükleniyor..\n$renkreset\n"
 
     local PASS=$(rastgele)
-    zip --password $PASS proxy.zip proxy.txt           # -qq
+    zip --password $PASS proxy.zip proxy.txt
     JSON=$(curl -sF file=@proxy.zip https://file.io)
     URL=$(echo $JSON | jq --raw-output '.link')
 

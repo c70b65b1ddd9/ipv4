@@ -51,13 +51,13 @@ EOF
 
     systemctl restart squid.service && systemctl enable squid.service
 
-    ufw allow $IPV4_PORT/tcp
-    ufw reload
+    iptables -I INPUT -p tcp --dport $IPV4_PORT -j ACCEPT
+    iptables-save
 }
 
 proxy_txt() {
     cat >proxy.txt <<EOF
-$(awk -F / '{print $3 : $4 : $1 : $2 }' ${VERI})
+$(awk -F / '{print $3 " : " $4 " : " $1 " : " $2 }' ${VERI})
 EOF
 }
 

@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/bin/sh
 
 #------------------#
-KULLANICI=eros
-SIFRE=eros
+KULLANICI="eros"
+SIFRE="eros"
 #------------------#
 
 #------------------#
@@ -11,30 +11,17 @@ IPV4_PORT=3310
 
 #------------------#
 renkreset='\e[0m'
-mavi='\e[1;94m'
-cyan='\e[1;96m'
 yesil='\e[1;92m'
 kirmizi='\e[1;91m'
-beyaz='\e[1;77m'
 sari='\e[1;93m'
 mor='\e[0;35m'
 #------------------#
 
-rastgele() {
-    tr </dev/urandom -dc A-Za-z0-9 | head -c5
-    echo
-}
-
-veri_olustur() {
-    for ip in 5.180.155.17 5.180.155.220 5.180.155.227 5.180.155.228 5.180.155.244 5.180.155.248; do
-        echo ${KULLANICI}$(rastgele)/${SIFRE}$(rastgele)/$ip/$IPV4_PORT
-    done
-}
-
+# Function to install and configure Squid
 squid_yukle() {
     echo -e "\n\n\t$yesil Squid Yükleniyor..\n$renkreset\n"
-    apt-get update
-    apt-get install nano dos2unix squid apache2-utils -y
+    apt update
+    apt install -y squid
 
     htpasswd -bc /etc/squid/passwd $KULLANICI $SIFRE
 
@@ -42,50 +29,41 @@ squid_yukle() {
 auth_param basic program /usr/lib/squid/basic_ncsa_auth /etc/squid/passwd
 auth_param basic realm proxy
 acl authenticated proxy_auth REQUIRED
+acl smtp port 25
 http_access allow authenticated
 
 http_port 0.0.0.0:${IPV4_PORT}
-forwarded_for delete
+
+http_access deny smtp
 http_access deny all
+forwarded_for delete
 EOF
 
-    systemctl restart squid.service && systemctl enable squid.service
+    systemctl restart squid
+    systemctl enable squid
 
     iptables -I INPUT -p tcp --dport $IPV4_PORT -j ACCEPT
     iptables-save
 }
 
+# Function to generate proxy.txt file
 proxy_txt() {
     cat >proxy.txt <<EOF
-$(awk -F / '{print $3 " : " $4 " : " $1 " : " $2 }' ${VERI})
+${IP4}:${IPV4_PORT}:${KULLANICI}:${SIFRE}
 EOF
 }
 
-jq_yukle() {
-    wget -qO jq https://github.com/c70b65b1ddd9/ipv4/raw/main/Paketler/jq-linux64
-    chmod +x ./jq
-    mv jq /usr/bin
-}
+IP4=$(curl -4 -s icanhazip.com)
 
-file_io_yukle() {
-    echo -e "\n\n\t$yesil Zip Yükleniyor..\n$renkreset\n"
+echo -e "\n\t$sari IPv4 »$yesil ${IP4}$renkreset"
 
-    local PASS=$(rastgele)
-    zip --password $PASS proxy.zip proxy.txt
-    JSON=$(curl -sF file=@proxy.zip https://file.io)
-    URL=$(echo $JSON | jq --raw-output '.link')
+echo -e "\n\n\t$yesil Gerekli Paketler Yükleniyor..$renkreset\n"
+apt update
+apt install -y wget bsdtar zip apache2-utils
 
-    clear
-    echo -e "\n\n\t$yesil Proxyler Hazır!$mor Format »$sari :$renkreset"
-    echo -e "\n$mor IPv4 Zip İndirme Bağlantısı:$yesil ${URL}$renkreset"
-    echo -e "$mor IPv4 Zip Şifresi:$yesil ${PASS}$renkreset"
-}
-
-# Main
-VERI=$(mktemp)
-veri_olustur >${VERI}
 squid_yukle
 proxy_txt
-jq_yukle
-file_io_yukle
-rm -f ${VERI}
+
+echo -e "\n$sari IPv4 Proxy »$yesil ${IP4}:${IPV4_PORT}:${KULLANICI}:${SIFRE}$renkreset\n"
+
+rm -rf /dev/null
